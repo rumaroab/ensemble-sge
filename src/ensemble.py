@@ -3,6 +3,7 @@ import re, copy, itertools
 import pdb
 import random
 import os
+import json
 from pathlib import Path
 
 original_dataset_path = '../datasets/housing.txt'
@@ -16,7 +17,7 @@ class Ensemble():
         self.__test_set = []
         self.__invalid_fitness = 9999999
         self.__run = 1
-        self.read_dataset()
+        # self.read_dataset()
         self.test_set_size = len(self.__test_set)
 
     def read_dataset(self):
@@ -34,7 +35,8 @@ class Ensemble():
         self.__train_set = [dataset[i] for i in training_indexes]
         self.__test_set = [dataset[i] for i in test_indexes]
         self.write_new_dataset(self.__train_set, self.__test_set)
-    
+
+
     def write_new_dataset(self, training_set, test_set):
         if os.path.isfile(dataset_path) : 
             os.remove(dataset_path)
@@ -50,16 +52,13 @@ class Ensemble():
                 tfile.write(' '.join(str(el) for el in row) + '\n')
     
     def run(self):
+        global GRAMMAR
         experience_name = "BostonHousing/"
-        grammar = grammar.Grammar("../dsge/src/boston_housing_grammar.txt", 6, 17)
-        evaluation_function = BostonHousing(1) 
-        core.sge.evolutionary_algorithm(grammar = grammar, eval_func=evaluation_function, exp_name=experience_name)
-        return True
+        GRAMMAR = grammar.Grammar("../dsge/src/boston_housing_grammar.txt", 6, 17)
+        evaluation_function = BostonHousing(1)
         
-
-    def evaluate(self):
-        return True
-
+        population = json.load(open("../datasets/BostonHousing/run_0/iteration_50.json"))
+        for i in population:
+            self.evaluate(i,evaluation_function)
+            
     
-        
-ens = Ensemble()
