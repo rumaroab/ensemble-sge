@@ -49,7 +49,8 @@ def run(ind, grammar, dataset):
     ind['other_info'] = other_info
     ind['mapping_values'] = mapping_values
     ind['tree_depth'] = tree_depth
-    
+
+
 def main():
     #read test dataset
     dataset = read_testset()
@@ -59,11 +60,9 @@ def main():
     grammar = Grammar("dsge/grammars/boston_housing_grammar.txt", 6, 17)
     
     #get Pop
-    population = json.load(open("datasets/BostonHousing/run_0/iteration_1.json"))
     #population = json.load(open("datasets/BostonHousing_2/run_0/iteration_50.json"))
+    population = json.load(open("datasets/BostonHousing/run_0/iteration_1.json"))
     
-    
-
     temp = []
     for ind in population:
         run(ind,grammar,dataset)
