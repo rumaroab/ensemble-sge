@@ -1,0 +1,28 @@
+Problems:
+ - Boston Housing
+ - Harmonic Curve Polynomial
+ - Pagie Polynomial (harder to solve)
+
+Evaluation Metrics:
+ - Median
+ - Mean
+ - Mode
+
+creating ensemble:
+ - best 100 unique
+ - best 100
+ - 1000
+ - inter quartile
+
+pops:
+ - 0, 25, 50 ,75
+ - use different generations
+
+_______________________
+
+Intro 
+Aprendizagem 
+Ensemble
+GP / GE / SGE
+Resultados
+Conclusão

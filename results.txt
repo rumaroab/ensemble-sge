@@ -1,0 +1,23 @@
+
+POP 20 ind per generation
+
+Median
+ensemble: 0.931782243615
+best: 0.74770193401
+worst: 1.75375904109
+
+Mean
+ensemble: 0.920012548761
+best: 0.74770193401
+worst: 1.26012286257
+
+ensemble: 0.934121310178
+best: 0.74770193401
+worst: 1.26012286257
+____________________________________________
+POP Last generation
+
+Median
+ensemble: 0.87924253221
+best: 0.74770193401
+worst: inf
