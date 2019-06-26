@@ -8,6 +8,8 @@ from dsge.core.grammar import Grammar
 from dsge.core.protectedmath import _log_, _div_, _exp_, _inv_, _sqrt_, protdiv
 from scipy.stats import iqr
 
+RUN = "run_5"
+
 import time
 __invalid_fitness = 9999999
 def drange(start, stop, step):
@@ -81,13 +83,15 @@ def ensError(dataset,pop,grammar):
         pred_error += (case_output - groupResult)**2
     return pred_error
 
-def perGeneration():
+def perGeneration(grammar, dataset):
     newPop = []
     for i in range(51):
         if i == 0:
             continue
-        tempGeneration = json.load(open("datasets/Pagie/run_0/iteration_"+ str(i) +".json"))
-        tempGeneration.sort(key=lambda x: x["fitness"])
+        tempGeneration = json.load(open("datasets/Pagie/"+RUN+"/iteration_"+ str(i) +".json"))
+        for ind in tempGeneration:
+            run(ind, grammar, dataset)
+        tempGeneration.sort(reverse=False,key=lambda x: x["other_info"]["test_error"] )
         count = 0
         for individual in tempGeneration:
             if count == 20:
@@ -127,7 +131,11 @@ def onlyIQR(pop):
     return temp
 
 def getPop(dataset, grammar, type = 0, gen = 50, folder = "Pagie"):
-    pop = json.load(open("datasets/"+folder+"/run_2/iteration_"+str(gen)+".json"))
+    
+    if type == 4:
+        return perGeneration(grammar, dataset)
+    
+    pop = json.load(open("datasets/"+folder+"/"+RUN+"/iteration_"+str(gen)+".json"))
     #fill test_error
     for ind in pop:
         run(ind, grammar, dataset)
@@ -140,8 +148,7 @@ def getPop(dataset, grammar, type = 0, gen = 50, folder = "Pagie"):
         return hundredBest(pop)
     if type == 3:
         return onlyIQR(pop)
-    if type == 4:
-        return perGeneration()
+    
 
 def main(function = "pagiepolynomial"):
     gen = 50
@@ -186,5 +193,5 @@ def main(function = "pagiepolynomial"):
 
     print(resultEvo)
     wr = json.dumps(resultEvo)
-    open('results/pagie/%d.json' % (time.time()), 'w').write(wr)
+    open('results/pagie/%s_100unique_%d.json' % (RUN,time.time()), 'w').write(wr)
 main()

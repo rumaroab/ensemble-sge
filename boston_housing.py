@@ -86,7 +86,7 @@ def ensError(dataset,pop,grammar):
                 results.append(result)
             except (OverflowError, ValueError) as e:
                 continue
-        groupResult = groupFunc(results,1)
+        groupResult = groupFunc(results)
         pred_error += (case_output - groupResult)**2
     return pred_error
 
@@ -125,30 +125,31 @@ def main():
     grammar = Grammar("dsge/grammars/boston_housing_grammar.txt", 6, 17)
     
     resultEvo = []
-    for gen in range(50):
+    for gen in range(1):
         # get Pop
         # type = 1 : 20 elements for each generation 
-        population = getPop(gen = gen)
+        population = getPop(type = 1,gen = gen)
         # temp = []
         # for ind in population:
-        #     run(ind,grammar,dataset)
-        #     temp.append(ind)
+        #      run(ind,grammar,dataset)
+        #      temp.append(ind)
         population.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
+        temp = [ind["other_info"]["test_error"] for ind in population]
         
         #Evaluate Ensemble
         ensResult = evalEns(dataset,population,grammar)
-        # best = min(temp)
-        # worst = max(temp)
+        best = min(temp)
+        worst = max(temp)
 
         print("\nINFO")
-        print('ensemble: ' + str(ensResult) )
-        # print('best: ' + str(min(temp)) )
-        # print('worst: ' + str(max(temp)) )    
+        print('ensemble: ' + str(ensResult) ) 
+        print('best: ' + str(best))
+        print('worst: ' + str(worst))
         # print('median: ' + str(median(temp)))   
-        # resultEvo.append({ "generation": gen, "ensemble": ensResult, "best": best, "worst": worst})
+        resultEvo.append({ "generation": gen, "ensemble": ensResult, "best": best, "worst": worst})
 
     print(resultEvo)
     wr = json.dumps(resultEvo)
-    open('results/%d.json' % (time.time()), 'w').write(wr)
+    open('results/boston/%d.json' % (time.time()), 'w').write(wr)
 
 main()
