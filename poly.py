@@ -7,10 +7,11 @@ from math import sin, cos, tan
 from dsge.core.grammar import Grammar
 from dsge.core.protectedmath import _log_, _div_, _exp_, _inv_, _sqrt_, protdiv
 from scipy.stats import iqr
-
+import math
+import time
+import matplotlib.pyplot as plt
 RUN = "run_5"
 
-import time
 __invalid_fitness = 9999999
 def drange(start, stop, step):
     r = start
@@ -79,7 +80,7 @@ def ensError(dataset,pop,grammar):
                 results.append(result)
             except (OverflowError, ValueError) as e:
                 continue
-        groupResult = groupFunc(results)
+        groupResult = groupFunc(results, 0)
         pred_error += (case_output - groupResult)**2
     return pred_error
 
@@ -131,7 +132,6 @@ def onlyIQR(pop):
     return temp
 
 def getPop(dataset, grammar, type = 0, gen = 50, folder = "Pagie"):
-    
     if type == 4:
         return perGeneration(grammar, dataset)
     
@@ -139,6 +139,8 @@ def getPop(dataset, grammar, type = 0, gen = 50, folder = "Pagie"):
     #fill test_error
     for ind in pop:
         run(ind, grammar, dataset)
+        if math.isnan(ind["other_info"]["test_error"]) :
+            return []
 
     if type == 0:
         return pop
@@ -149,6 +151,37 @@ def getPop(dataset, grammar, type = 0, gen = 50, folder = "Pagie"):
     if type == 3:
         return onlyIQR(pop)
     
+def analyse():
+    grammar = Grammar("dsge/grammars/regression.txt")
+    xx = list(drange(-5,5.0,.1))
+    yy = list(drange(-5,5.0,.1))
+    func = eval("pagiepolynomial")
+    zz = map(func, xx, yy)
+    dataset = zip(xx,yy,zz)
+    
+    pop = json.load(open("datasets/Pagie/"+RUN+"/iteration_50.json"))
+    #fill test_error
+    teData = []
+    qData = []
+    data = []
+    for ind in pop:
+        run(ind, grammar, dataset)
+        teData.append(ind["other_info"]["test_error"])
+        qData.append(ind["quality"])
+        data.append((ind["quality"],ind["other_info"]["test_error"]))
+     
+    fig1, ax1 = plt.subplots()
+    ax1.set_title('testError')
+    ax1.boxplot(teData, showfliers=False)
+
+    fig7, ax7 = plt.subplots()
+    ax7.set_title('qlty')
+    ax7.boxplot(qData, showfliers=False)
+    
+    plt.show()
+
+    
+           
 
 def main(function = "pagiepolynomial"):
     gen = 50
@@ -169,15 +202,22 @@ def main(function = "pagiepolynomial"):
         dataset = zip(xx,yy)
 
     resultEvo = []
-    for gen in range(51):
+    for gen in range(1):
         # type = 0 : full pop
         # type = 1 : best 100 unique ind in pop 
         # type = 2 : best 100 ind in pop 
         # type = 3 : only in IQR
         # type = 4 : 20 elements per generation
-        population = getPop(grammar=grammar, dataset=dataset, type=1, gen = gen)
-        print(len(population))
-
+        population = getPop(grammar=grammar, dataset=dataset, type=4, gen = gen)
+        size = len(population)
+        if size == 0:
+            print("NaN")
+            resultEvo.append({ "generation": gen, "ensemble": 0, "best": 0, "worst": 0})
+            continue
+        print(size)
+        
+        wrpop = json.dumps(population)
+        open('results/pagie_pop_per20.json', 'w').write(wrpop)
         #Evaluate Ensemble
         ensResult = evalEns(dataset,population,grammar)
         temp = [ind["other_info"]["test_error"] for ind in population]
@@ -192,6 +232,6 @@ def main(function = "pagiepolynomial"):
         resultEvo.append({ "generation": gen, "ensemble": ensResult, "best": best, "worst": worst})
 
     print(resultEvo)
-    wr = json.dumps(resultEvo)
-    open('results/pagie/%s_100unique_%d.json' % (RUN,time.time()), 'w').write(wr)
+    #wr = json.dumps(resultEvo)
+    #open('results/relevant/pagie_%s_1iqr3_mean.json' % (RUN), 'w').write(wr)
 main()

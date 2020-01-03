@@ -1,10 +1,12 @@
 import json
 from math import log, exp, sqrt
 from numpy import median, mean
+from numpy import percentile
 from statistics import mode
 from math import sin, cos, tan
 from dsge.core.grammar import Grammar
 from dsge.core.protectedmath import _log_, _div_, _exp_, _inv_, _sqrt_, protdiv
+import math
 import time
 
 __invalid_fitness = 9999999
@@ -67,13 +69,13 @@ def groupFunc(values, type = 0):
     else:
         return median(values)
 
-def evalEns(dataset,pop,grammar):
+def evalEns(dataset,pop,grammar, i):
     __RRSE_test_denominator = calculate_RRSE_denominators(dataset)
-    error = ensError(dataset,pop,grammar)
+    error = ensError(dataset,pop,grammar, i)
     test_error = _sqrt_( error / float(__RRSE_test_denominator))
     return test_error
 
-def ensError(dataset,pop,grammar): 
+def ensError(dataset,pop,grammar, i): 
     pred_error = 0
     for fit_case in dataset:
         case_output = fit_case[-1]
@@ -86,7 +88,7 @@ def ensError(dataset,pop,grammar):
                 results.append(result)
             except (OverflowError, ValueError) as e:
                 continue
-        groupResult = groupFunc(results)
+        groupResult = groupFunc(results, i)
         pred_error += (case_output - groupResult)**2
     return pred_error
 
@@ -106,12 +108,41 @@ def perGeneration():
 
     return newPop
 
+def hundredBest(pop):
+    pop.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
+    return pop[:100]
+
+def uniqueHundred(pop):
+    pop.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
+    seen = []
+    for ind in pop:
+        if ind in seen:
+            continue
+        seen.append(ind)
+        yield ind
+        if len(seen) == 100:
+            return
+
+def onlyIQR(pop):
+    q3, q1 = percentile([ind["other_info"]["test_error"] for ind in pop], [75 ,25])
+    temp = []
+    for ind in pop:
+        if ind["other_info"]["test_error"] >= q1 and ind["other_info"]["test_error"] <= q3 :
+            temp.append(ind)
+    return temp
 
 def getPop(type = 0, gen = 50):
-    if type == 1:
+    if type == 4:
         return perGeneration()
-    else:
-        return json.load(open("datasets/BostonHousing_pop1000/run_0/iteration_"+str(gen)+".json"))
+    pop = json.load(open("datasets/BostonHousing_pop1000/run_0/iteration_"+str(gen)+".json"))
+    if type == 0:
+        return pop
+    if type == 1:
+        return list(uniqueHundred(pop))
+    if type == 2:
+        return hundredBest(pop)
+    if type == 3:
+        return onlyIQR(pop)
 
 def main():
     #read test dataset
@@ -124,11 +155,18 @@ def main():
     #get Grammar
     grammar = Grammar("dsge/grammars/boston_housing_grammar.txt", 6, 17)
     
+    #for i in range(2):
+    #    print(i)
     resultEvo = []
-    for gen in range(1):
-        # get Pop
-        # type = 1 : 20 elements for each generation 
-        population = getPop(type = 1,gen = gen)
+    for gen in range(50):
+        
+        print(gen)
+        # type = 0 : full pop
+        # type = 1 : best 100 unique ind in pop 
+        # type = 2 : best 100 ind in pop 
+        # type = 3 : only in IQR
+        # type = 4 : 20 elements per generation
+        population = getPop(type = 4,gen = gen)
         # temp = []
         # for ind in population:
         #      run(ind,grammar,dataset)
@@ -137,7 +175,7 @@ def main():
         temp = [ind["other_info"]["test_error"] for ind in population]
         
         #Evaluate Ensemble
-        ensResult = evalEns(dataset,population,grammar)
+        ensResult = evalEns(dataset,population,grammar, 2)
         best = min(temp)
         worst = max(temp)
 
@@ -150,6 +188,7 @@ def main():
 
     print(resultEvo)
     wr = json.dumps(resultEvo)
-    open('results/boston/%d.json' % (time.time()), 'w').write(wr)
+    open('results/relevant/boston_run_0_100_mode.json', 'w').write(wr)
+
 
 main()
