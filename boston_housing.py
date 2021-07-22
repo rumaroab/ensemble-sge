@@ -2,10 +2,10 @@ import json
 from math import log, exp, sqrt
 from numpy import median, mean
 from numpy import percentile
-from statistics import mode
+#from statistics import mode
 from math import sin, cos, tan
-from dsge.core.grammar import Grammar
-from dsge.core.protectedmath import _log_, _div_, _exp_, _inv_, _sqrt_, protdiv
+from dsge.src.core.grammar import Grammar
+from dsge.src.core.protectedmath import _log_, _div_, _exp_, _inv_, _sqrt_, protdiv
 import math
 import time
 
@@ -69,13 +69,13 @@ def groupFunc(values, type = 0):
     else:
         return median(values)
 
-def evalEns(dataset,pop,grammar, i):
+def evalEns(dataset,pop,grammar, aggFn):
     __RRSE_test_denominator = calculate_RRSE_denominators(dataset)
-    error = ensError(dataset,pop,grammar, i)
+    error = ensError(dataset,pop,grammar, aggFn)
     test_error = _sqrt_( error / float(__RRSE_test_denominator))
     return test_error
 
-def ensError(dataset,pop,grammar, i): 
+def ensError(dataset,pop,grammar, aggFn): 
     pred_error = 0
     for fit_case in dataset:
         case_output = fit_case[-1]
@@ -88,7 +88,7 @@ def ensError(dataset,pop,grammar, i):
                 results.append(result)
             except (OverflowError, ValueError) as e:
                 continue
-        groupResult = groupFunc(results, i)
+        groupResult = groupFunc(results, aggFn)
         pred_error += (case_output - groupResult)**2
     return pred_error
 
@@ -108,9 +108,9 @@ def perGeneration():
 
     return newPop
 
-def hundredBest(pop):
+def hundredBest(pop, totalElementsToConsider):
     pop.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
-    return pop[:100]
+    return pop[:totalElementsToConsider]
 
 def uniqueHundred(pop):
     pop.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
@@ -120,7 +120,7 @@ def uniqueHundred(pop):
             continue
         seen.append(ind)
         yield ind
-        if len(seen) == 100:
+        if len(seen) == 500:
             return
 
 def onlyIQR(pop):
@@ -131,64 +131,81 @@ def onlyIQR(pop):
             temp.append(ind)
     return temp
 
-def getPop(type = 0, gen = 50):
+def getPop(type = 0, gen = 50, totalElementsToConsider= 500):
     if type == 4:
         return perGeneration()
-    pop = json.load(open("datasets/BostonHousing_pop1000/run_0/iteration_"+str(gen)+".json"))
+
+    pop = json.load(open("dumps/BostonHousing/run_2/iteration_"+str(gen)+".json"))
+    #pop = json.load(open("datasets/BostonHousing_pop1000/run_0/iteration_"+str(gen)+".json"))
     if type == 0:
         return pop
     if type == 1:
         return list(uniqueHundred(pop))
     if type == 2:
-        return hundredBest(pop)
+        return hundredBest(pop,totalElementsToConsider)
     if type == 3:
         return onlyIQR(pop)
 
 def main():
-    #read test dataset
-    dataset = read_testset()
-    print(len(dataset))
-    
-    #calc rsse
-    rsse = calculate_RRSE_denominators(dataset)
+    typs = [0]
+    aggFns = [0,1] 
+    #totalElementsToConsiderArr = [10,20]
+    for typ in typs:
+        for aggFn in aggFns:
+            for totalElementsToConsider in totalElementsToConsiderArr:
+                #read test dataset
+                dataset = read_testset()
+                #print(len(dataset))
+                
+                #calc rsse
+                rsse = calculate_RRSE_denominators(dataset)
 
-    #get Grammar
-    grammar = Grammar("dsge/grammars/boston_housing_grammar.txt", 6, 17)
-    
-    #for i in range(2):
-    #    print(i)
-    resultEvo = []
-    for gen in range(50):
-        
-        print(gen)
-        # type = 0 : full pop
-        # type = 1 : best 100 unique ind in pop 
-        # type = 2 : best 100 ind in pop 
-        # type = 3 : only in IQR
-        # type = 4 : 20 elements per generation
-        population = getPop(type = 4,gen = gen)
-        # temp = []
-        # for ind in population:
-        #      run(ind,grammar,dataset)
-        #      temp.append(ind)
-        population.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
-        temp = [ind["other_info"]["test_error"] for ind in population]
-        
-        #Evaluate Ensemble
-        ensResult = evalEns(dataset,population,grammar, 2)
-        best = min(temp)
-        worst = max(temp)
+                #get Grammar
+                grammar = Grammar("dsge/src/grammars/boston_housing_grammar.txt", 6, 17)
+                
+                resultEvo = []
+                for gen in range(50):
+                #gen = 50
+                    print(gen)
+                    # type = 0 : full pop
+                    # type = 1 : best 100 unique ind in pop 
+                    # type = 2 : best 100 ind in pop 
+                    # type = 3 : only in IQR
+                    # type = 4 : 20 elements per generation
+                    #typ = 3
+                    population = getPop(type = typ,gen = gen,totalElementsToConsider=totalElementsToConsider)
+                    # temp = []
+                    # for ind in population:
+                    #      run(ind,grammar,dataset)
+                    #      temp.append(ind)
+                    population.sort(reverse=False, key=lambda x: x["other_info"]["test_error"])
+                    temp = [ind["other_info"]["test_error"] for ind in population]
+                    
+                    # AGG FUNC
+                    # type = 1 : mean
+                    # type = 2 : mode 
+                    # type = else : median
+                    #Evaluate Ensemble
+                    #aggFn = 1
+                    ensResult = evalEns(dataset,population,grammar, aggFn)
+                    try: 
+                        best = min(temp)
+                    except:
+                        best = -1
+                    try: 
+                        worst = max(temp)
+                    except:
+                        worst = -1
 
-        print("\nINFO")
-        print('ensemble: ' + str(ensResult) ) 
-        print('best: ' + str(best))
-        print('worst: ' + str(worst))
-        # print('median: ' + str(median(temp)))   
-        resultEvo.append({ "generation": gen, "ensemble": ensResult, "best": best, "worst": worst})
+                    print("\nINFO")
+                    print('ensemble: ' + str(ensResult) ) 
+                    print('best: ' + str(best))
+                    print('worst: ' + str(worst))
+                    # print('median: ' + str(median(temp)))   
+                    resultEvo.append({ "generation": gen, "ensemble": ensResult, "best": best, "worst": worst})
 
-    print(resultEvo)
-    wr = json.dumps(resultEvo)
-    open('results/relevant/boston_run_0_100_mode.json', 'w').write(wr)
-
+                print(resultEvo)
+                wr = json.dumps(resultEvo)
+                open('results/v2/boston_housing_'+str(typ)+'_'+str(aggFn)+'_v2_'+str(totalElementsToConsider)+'.json', 'w').write(wr)
 
 main()
